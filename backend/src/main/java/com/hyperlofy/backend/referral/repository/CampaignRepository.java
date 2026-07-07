@@ -1,0 +1,13 @@
+package com.hyperlofy.backend.referral.repository;
+
+import com.hyperlofy.backend.referral.entity.Campaign;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+import java.util.UUID;
+
+@Repository
+public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
+    Optional<Campaign> findByCouponCodeAndActiveTrue(String couponCode);
+}

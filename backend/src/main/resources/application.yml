@@ -1,0 +1,77 @@
+spring:
+  application:
+    name: hyperlofy-backend
+  
+  # PostgreSQL Configuration
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/hyperlofy}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:postgres_password}
+    driver-class-name: org.postgresql.Driver
+  
+  # JPA & Hibernate Configurations
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate # set to validate for production flyway setup
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+  # Flyway Database Migration Configuration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    schemas: public
+    locations: classpath:db/migration
+
+  # Redis Configuration for cache & session state
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis_password}
+      timeout: 2000ms
+
+  # Multipart Upload configurations (for PAN, Aadhaar and profile images)
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+# Security Properties
+app:
+  jwt:
+    secret: ${JWT_SECRET:EnterBase64JwtSecretHere} # Base64 encoded key
+    token-validity-in-seconds: 3600 # 1 hour
+    refresh-token-validity-in-seconds: 604800 # 7 days
+    issuer: com.hyperlofy.backend
+  
+  # Razorpay Test Mode settings
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:rzp_test_key_id}
+    key-secret: ${RAZORPAY_KEY_SECRET:rzp_test_key_secret}
+    merchant-name: Hyperlofy Local Marketplace
+
+# Server Config
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Logging Config
+logging:
+  level:
+    root: INFO
+    com.hyperlofy.backend: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.SQL: ERROR

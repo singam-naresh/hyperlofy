@@ -1,0 +1,6 @@
+{
+  "name": "Hyperlofy",
+  "description": "Phase 1 production-grade modular monolith Java/Spring Boot backend for hyperlocal delivery platform with JWT Security, Flyway, and Role-Based Access Control.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

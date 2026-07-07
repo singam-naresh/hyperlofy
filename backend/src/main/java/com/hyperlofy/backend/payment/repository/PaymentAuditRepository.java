@@ -1,0 +1,13 @@
+package com.hyperlofy.backend.payment.repository;
+
+import com.hyperlofy.backend.payment.entity.PaymentAudit;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.UUID;
+
+@Repository
+public interface PaymentAuditRepository extends JpaRepository<PaymentAudit, UUID> {
+    List<PaymentAudit> findByPaymentId(UUID paymentId);
+}

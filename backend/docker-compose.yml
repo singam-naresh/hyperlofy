@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database Service
+  postgres:
+    image: postgres:16-alpine
+    container_name: hyperlofy-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: hyperlofy
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres_password}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - hyperlofy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis Sessions Cache Service
+  redis:
+    image: redis:7-alpine
+    container_name: hyperlofy-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_password}
+    volumes:
+      - redisdata:/data
+    networks:
+      - hyperlofy-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_password}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot Modular Monolith Backend Service (Production-ready template configuration)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hyperlofy-backend-server
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DATABASE_URL=jdbc:postgresql://postgres:5432/hyperlofy
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-postgres_password}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_password}
+      - JWT_SECRET=${JWT_SECRET:-EnterBase64JwtSecretHere}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-rzp_test_key_id}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-rzp_test_key_secret}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hyperlofy-network
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  hyperlofy-network:
+    driver: bridge
