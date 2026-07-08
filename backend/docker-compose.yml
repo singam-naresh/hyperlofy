@@ -54,7 +54,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_password}
-      - JWT_SECRET=${JWT_SECRET:-EnterBase64JwtSecretHere}
+      - JWT_SECRET=${JWT_SECRET:-aHlwZXJsb2Z5LWRldi1qd3Qtc2VjcmV0LWtleS0zMi1ieXRlcy1taW4=}
       - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-rzp_test_key_id}
       - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-rzp_test_key_secret}
     depends_on:
@@ -62,6 +62,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     networks:
       - hyperlofy-network
 

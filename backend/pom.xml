@@ -51,6 +51,15 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    <version>2.8.9</version>
+</dependency>
 
         <!-- Flyway Database Migrations -->
         <dependency>
@@ -93,6 +102,11 @@
             <groupId>com.razorpay</groupId>
             <artifactId>razorpay-java</artifactId>
             <version>${razorpay.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20240303</version>
         </dependency>
 
         <!-- MapStruct for DTO mapping -->
