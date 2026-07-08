@@ -11,7 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.Patch;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -56,15 +56,21 @@ public class AdminZoneController {
     }
 
     @PatchMapping("/{id}/radius")
-    public ResponseEntity<ZoneResponse> changeRadius(@PathVariable UUID id, @RequestParam Double radiusKm) {
-        ZoneRequest current = zoneService.updateZone(id, ZoneRequest.builder()
-                .name(zoneService.getZoneById(id).getName())
-                .centerLatitude(zoneService.getZoneById(id).getCenterLatitude())
-                .centerLongitude(zoneService.getZoneById(id).getCenterLongitude())
-                .radiusKm(radiusKm)
-                .build());
-        return ResponseEntity.ok(current);
-    }
+public ResponseEntity<ZoneResponse> changeRadius(@PathVariable UUID id, @RequestParam Double radiusKm) {
+
+    ZoneResponse existing = zoneService.getZoneById(id);
+
+    ZoneRequest request = ZoneRequest.builder()
+            .name(existing.getName())
+            .centerLatitude(existing.getCenterLatitude())
+            .centerLongitude(existing.getCenterLongitude())
+            .radiusKm(radiusKm)
+            .build();
+
+    ZoneResponse updated = zoneService.updateZone(id, request);
+
+    return ResponseEntity.ok(updated);
+}
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteZone(@PathVariable UUID id) {

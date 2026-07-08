@@ -60,7 +60,7 @@ public class AgentWebSocketTrackingTest {
                 .storeLongitude(77.5946)
                 .deliveryLatitude(12.9250)
                 .deliveryLongitude(77.6100)
-                .orderStatus(OrderStatus.PICKED)
+                .orderStatus(OrderStatus.PICKED_AT_STORE)
                 .build();
         sampleOrder.setId(orderId);
 

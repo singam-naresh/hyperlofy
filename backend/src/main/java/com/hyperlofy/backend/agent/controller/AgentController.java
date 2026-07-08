@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.security.Principal;
 
 @RestController
-@RequestMapping("/agent")
+@RequestMapping("/api/v1/agent")
 @PreAuthorize("hasRole('AGENT')")
 @RequiredArgsConstructor
 public class AgentController {

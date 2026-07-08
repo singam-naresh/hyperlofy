@@ -107,7 +107,7 @@ public class PaymentGatewayService {
 
         // 3. Mark corresponding Order as PAID
         Order order = payment.getOrder();
-        order.setOrderStatus(OrderStatus.ACCEPTED); // Order transitions to accepted when paid
+        order.setOrderStatus(OrderStatus.PAYMENT_SUCCESS);
         orderRepository.save(order);
 
         // 4. Secure funds in double-entry Escrow Pool
@@ -116,7 +116,7 @@ public class PaymentGatewayService {
         // 5. Save audit records
         logPaymentAudit(payment.getId(), "CAPTURE_PAYMENT", "COMPLETED", "Signature verified. Funds verified and placed in Escrow pool.");
 
-        log.info("Transaction validated and captured. Order status set to ACCEPTED, Escrow locked for Order ID: {}", order.getId());
+        log.info("Transaction validated and captured. Order status set to PAYMENT_SUCCESS, Escrow locked for Order ID: {}", order.getId());
         return payment;
     }
 

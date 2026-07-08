@@ -181,7 +181,7 @@ public class AnalyticsEngineService {
         }
 
         long completed = orders.stream().filter(o -> o.getOrderStatus() == OrderStatus.DELIVERED || o.getOrderStatus() == OrderStatus.COMPLETED).count();
-        long cancelled = orders.stream().filter(o -> o.getOrderStatus() == OrderStatus.REJECTED).count();
+        long cancelled = orders.stream().filter(o -> o.getOrderStatus() == OrderStatus.CANCELLED).count();
 
         double successRate = ((double) completed / total) * 100.0;
         double cancelRate = ((double) cancelled / total) * 100.0;

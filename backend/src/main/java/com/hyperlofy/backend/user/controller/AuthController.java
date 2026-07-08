@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Controller managing entry security borders (Registration, Authentication, Session Updates).
  */
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
 

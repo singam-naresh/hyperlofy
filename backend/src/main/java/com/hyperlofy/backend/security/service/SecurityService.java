@@ -137,7 +137,7 @@ public class SecurityService {
 
         String lockKey = BRUTE_FORCE_PREFIX + email;
         Object val = redisTemplate.opsForValue().get(lockKey);
-        int attempts = val != null ? (Integer) val : 0;
+        int attempts = readCounterValue(val);
         attempts++;
 
         if (attempts >= MAX_FAILED_ATTEMPTS) {
@@ -154,7 +154,7 @@ public class SecurityService {
     public void verifyBruteForceCheck(String email) {
         String lockKey = BRUTE_FORCE_PREFIX + email;
         Object val = redisTemplate.opsForValue().get(lockKey);
-        if (val != null && (Integer) val >= MAX_FAILED_ATTEMPTS) {
+        if (readCounterValue(val) >= MAX_FAILED_ATTEMPTS) {
             throw new BusinessException("Security Lockout: Account is locked under brute force protection algorithms.", HttpStatus.LOCKED);
         }
     }
@@ -224,5 +224,19 @@ public class SecurityService {
                 .build();
         securityEventRepository.save(event);
         log.warn("[SECURITY AUDIT ALERT] Severity: {}, Event: {}, Info: {}", severity, eventType, description);
+    }
+
+    private int readCounterValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String text) {
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException ignored) {
+                return 0;
+            }
+        }
+        return 0;
     }
 }

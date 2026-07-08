@@ -33,7 +33,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Register connection border STOMP gateways
-        registry.addEndpoint("/ws-gateway")
+        registry.addEndpoint("/api/v1/ws-gateway")
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
     }

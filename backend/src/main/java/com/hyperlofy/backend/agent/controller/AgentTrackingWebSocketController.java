@@ -52,9 +52,8 @@ public class AgentTrackingWebSocketController {
         double targetLng = order.getDeliveryLongitude();
 
         // If not yet out for delivery, calculate distance to store for pickup
-        if (order.getOrderStatus() == OrderStatus.ACCEPTED || 
-            order.getOrderStatus() == OrderStatus.ASSIGNED || 
-            order.getOrderStatus() == OrderStatus.PICKED) {
+        if (order.getOrderStatus() == OrderStatus.ASSIGNED ||
+            order.getOrderStatus() == OrderStatus.PICKED_AT_STORE) {
             targetLat = order.getStoreLatitude();
             targetLng = order.getStoreLongitude();
         }

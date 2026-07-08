@@ -44,9 +44,11 @@ public class RefreshToken {
     @Column(name = "revoked", nullable = false)
     private boolean revoked = false;
 
-    @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt = OffsetDateTime.now();
+    @Builder.Default
+@Column(name = "created_at", nullable = false)
+private OffsetDateTime createdAt = OffsetDateTime.now();
 
-    @Column(name = "updated_at", nullable = false)
-    private OffsetDateTime updatedAt = OffsetDateTime.now();
+@Builder.Default
+@Column(name = "updated_at", nullable = false)
+private OffsetDateTime updatedAt = OffsetDateTime.now();
 }

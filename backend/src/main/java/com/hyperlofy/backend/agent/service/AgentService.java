@@ -117,7 +117,6 @@ public class AgentService {
                 .profileImageUrl(profile.getProfileImageUrl())
                 .verificationStatus(profile.getVerificationStatus())
                 .rejectionReason(profile.getRejectionReason())
-                .suspendedAt(profile.getWithdrawnAt()) // Wait! In BaseEntity we can use custom suspendedAt representation
                 .suspendedAt(profile.getSuspendedAt())
                 .suspensionReason(profile.getSuspensionReason())
                 .build();

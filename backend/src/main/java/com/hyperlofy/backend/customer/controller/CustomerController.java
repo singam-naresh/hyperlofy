@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.security.Principal;
 
 @RestController
-@RequestMapping("/customer")
+@RequestMapping("/api/v1/customer")
 @PreAuthorize("hasRole('CUSTOMER')")
 @RequiredArgsConstructor
 public class CustomerController {

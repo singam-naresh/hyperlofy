@@ -4,7 +4,6 @@ import com.hyperlofy.backend.security.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -43,37 +42,99 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
         http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Authentication and Public URLs
-                .requestMatchers("/api/v1/auth/**").permitAll()
-                .requestMatchers("/api/v1/ws/**").permitAll() // WebSocket public access
-                .requestMatchers("/api/v1/payments/razorpay/webhook").permitAll() // Webhook public callback
-                // RBAC configuration boundaries
-                .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
-                .requestMatchers("/api/v1/analytics/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
-                .requestMatchers("/api/v1/customer/**").hasRole("CUSTOMER")
-                .requestMatchers("/api/v1/agent/**").hasRole("AGENT")
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .csrf(AbstractHttpConfigurer::disable)
+
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                .authorizeHttpRequests(auth -> auth
+
+                        // ===== Public Endpoints =====
+                        .requestMatchers(
+                                "/actuator/health/**",
+                                "/actuator/info"
+                        ).permitAll()
+
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+
+                        .requestMatchers("/api/v1/ws-gateway/**").permitAll()
+
+                        .requestMatchers("/api/v1/payments/razorpay/webhook").permitAll()
+
+                        // ===== Swagger / OpenAPI =====
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+
+                        // ===== Admin =====
+                        .requestMatchers("/api/v1/admin/**")
+                        .hasAnyRole("ADMIN", "SUPER_ADMIN")
+
+                        .requestMatchers("/api/v1/analytics/**")
+                        .hasAnyRole("ADMIN", "SUPER_ADMIN")
+
+                        .requestMatchers("/api/v1/ledger/**")
+                        .hasAnyRole("ADMIN", "SUPER_ADMIN")
+
+                        .requestMatchers("/api/v1/payments/admin/**")
+                        .hasAnyRole("ADMIN", "SUPER_ADMIN")
+
+                        // ===== Customer =====
+                        .requestMatchers("/api/v1/customer/**")
+                        .hasRole("CUSTOMER")
+
+                        // ===== Agent =====
+                        .requestMatchers("/api/v1/agent/**")
+                        .hasRole("AGENT")
+
+                        // ===== Everything else =====
+                        .anyRequest().authenticated()
+                )
+
+                .addFilterBefore(
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Collections.singletonList("*")); // Change for production scope
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
+
+        configuration.setAllowedOrigins(Collections.singletonList("*"));
+
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "OPTIONS"
+        ));
+
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "X-Razorpay-Signature"
+        ));
+
         configuration.setExposedHeaders(Collections.singletonList("Authorization"));
-        
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 }

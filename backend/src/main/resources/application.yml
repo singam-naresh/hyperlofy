@@ -48,7 +48,7 @@ spring:
 # Security Properties
 app:
   jwt:
-    secret: ${JWT_SECRET:EnterBase64JwtSecretHere} # Base64 encoded key
+    secret: ${JWT_SECRET:aHlwZXJsb2Z5LWRldi1qd3Qtc2VjcmV0LWtleS0zMi1ieXRlcy1taW4=} # Base64 encoded key
     token-validity-in-seconds: 3600 # 1 hour
     refresh-token-validity-in-seconds: 604800 # 7 days
     issuer: com.hyperlofy.backend
@@ -62,11 +62,19 @@ app:
 # Server Config
 server:
   port: 8080
-  servlet:
-    context-path: /api/v1
   error:
     include-message: always
     include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
 
 # Logging Config
 logging:

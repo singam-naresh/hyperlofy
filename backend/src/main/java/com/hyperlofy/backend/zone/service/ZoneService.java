@@ -8,8 +8,8 @@ import com.hyperlofy.backend.zone.repository.PricingSlabRepository;
 import com.hyperlofy.backend.zone.repository.ZoneRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
+// import org.springframework.cache.annotation.CacheEvict;
+// import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +30,7 @@ public class ZoneService {
     private final GeoLocationService geoLocationService;
 
     @Transactional
-    @CacheEvict(value = {"zones", "active_zones"}, allEntries = true)
+    //@CacheEvict(value = {"zones", "active_zones"}, allEntries = true)
     public ZoneResponse createZone(ZoneRequest request) {
         if (zoneRepository.findByNameIgnoreCase(request.getName()).isPresent()) {
             throw new BusinessException("Zone with name " + request.getName() + " already exists", HttpStatus.CONFLICT);
@@ -50,7 +50,7 @@ public class ZoneService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "zones", key = "#id")
+    //@Cacheable(value = "zones", key = "#id")
     public ZoneResponse getZoneById(UUID id) {
         Zone zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Zone not found with ID: " + id, HttpStatus.NOT_FOUND));
@@ -65,7 +65,7 @@ public class ZoneService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "active_zones")
+    //@Cacheable(value = "active_zones")
     public List<ZoneResponse> getAllActiveZones() {
         return zoneRepository.findByActiveTrue().stream()
                 .map(this::mapToZoneResponse)
@@ -73,7 +73,7 @@ public class ZoneService {
     }
 
     @Transactional
-    @CacheEvict(value = {"zones", "active_zones"}, allEntries = true)
+    //@CacheEvict(value = {"zones", "active_zones"}, allEntries = true)
     public ZoneResponse updateZone(UUID id, ZoneRequest request) {
         Zone zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Zone not found", HttpStatus.NOT_FOUND));
@@ -96,7 +96,7 @@ public class ZoneService {
     }
 
     @Transactional
-    @CacheEvict(value = {"zones", "active_zones"}, allEntries = true)
+    //@CacheEvict(value = {"zones", "active_zones"}, allEntries = true)
     public ZoneResponse enableZone(UUID id) {
         Zone zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Zone not found", HttpStatus.NOT_FOUND));
@@ -107,7 +107,7 @@ public class ZoneService {
     }
 
     @Transactional
-    @CacheEvict(value = {"zones", "active_zones"}, allEntries = true)
+    //@CacheEvict(value = {"zones", "active_zones"}, allEntries = true)
     public ZoneResponse disableZone(UUID id) {
         Zone zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Zone not found", HttpStatus.NOT_FOUND));
@@ -118,7 +118,7 @@ public class ZoneService {
     }
 
     @Transactional
-    @CacheEvict(value = {"zones", "active_zones"}, allEntries = true)
+    //@CacheEvict(value = {"zones", "active_zones"}, allEntries = true)
     public void deleteZone(UUID id) {
         Zone zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Zone not found", HttpStatus.NOT_FOUND));
@@ -129,7 +129,7 @@ public class ZoneService {
     // --- Pricing Slabs Business Logic ---
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "pricing_slabs", key = "#zoneId")
+    //@Cacheable(value = "pricing_slabs", key = "#zoneId")
     public List<PricingSlabResponse> getPricingSlabsForZone(UUID zoneId) {
         // Assert zone exists
         if (!zoneRepository.existsById(zoneId)) {
@@ -142,7 +142,7 @@ public class ZoneService {
     }
 
     @Transactional
-    @CacheEvict(value = "pricing_slabs", key = "#request.zoneId")
+    //@CacheEvict(value = "pricing_slabs", key = "#request.zoneId")
     public PricingSlabResponse addPricingSlab(PricingSlabRequest request) {
         Zone zone = zoneRepository.findById(request.getZoneId())
                 .orElseThrow(() -> new BusinessException("Zone not found", HttpStatus.NOT_FOUND));
@@ -161,7 +161,7 @@ public class ZoneService {
     }
 
     @Transactional
-    @CacheEvict(value = "pricing_slabs", allEntries = true)
+    //@CacheEvict(value = "pricing_slabs", allEntries = true)
     public void deletePricingSlab(UUID slabId) {
         PricingSlab slab = pricingSlabRepository.findById(slabId)
                 .orElseThrow(() -> new BusinessException("Pricing slab not found", HttpStatus.NOT_FOUND));
