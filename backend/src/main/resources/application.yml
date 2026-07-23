@@ -52,6 +52,19 @@ app:
     token-validity-in-seconds: 3600 # 1 hour
     refresh-token-validity-in-seconds: 604800 # 7 days
     issuer: com.hyperlofy.backend
+
+  ai:
+    gateway:
+      gemini:
+        api-key: ${GEMINI_API_KEY:}
+        base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+        model: ${GEMINI_MODEL:gemini-2.5-flash}
+      default-provider: ${AI_DEFAULT_PROVIDER:GEMINI}
+      default-model: ${AI_DEFAULT_MODEL:gemini-2.5-flash}
+      system-prompt: ${AI_SYSTEM_PROMPT:You are Hyperlofy AI Gateway. Return only valid JSON objects.}
+      timeout-ms: ${AI_TIMEOUT_MS:10000}
+      max-retries: ${AI_MAX_RETRIES:2}
+      response-schema: object
   
   # Razorpay Test Mode settings
   razorpay:

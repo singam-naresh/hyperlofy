@@ -89,6 +89,27 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/customer/**")
                         .hasRole("CUSTOMER")
 
+                        .requestMatchers("/api/v1/order-builder/**")
+                        .hasRole("CUSTOMER")
+
+                        .requestMatchers("/api/v1/recommendations/**")
+                        .hasRole("CUSTOMER")
+
+                        .requestMatchers("/api/v1/memories/**")
+                        .hasRole("CUSTOMER")
+
+                        .requestMatchers("/api/v1/verifications/**")
+                        .authenticated()
+
+                        .requestMatchers("/api/v1/intent/**")
+                        .hasRole("CUSTOMER")
+
+                        .requestMatchers("/api/v1/recommendations/**")
+                        .hasRole("CUSTOMER")
+
+                        .requestMatchers("/api/v1/planning/**")
+                        .hasRole("CUSTOMER")
+
                         // ===== Agent =====
                         .requestMatchers("/api/v1/agent/**")
                         .hasRole("AGENT")

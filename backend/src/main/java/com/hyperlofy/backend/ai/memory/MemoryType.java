@@ -1,0 +1,14 @@
+package com.hyperlofy.backend.ai.memory;
+
+public enum MemoryType {
+    FOOD_PREFERENCE,
+    BRAND,
+    SHOPPING_PATTERN,
+    DELIVERY_PREFERENCE,
+    ADDRESS_PREFERENCE,
+    PAYMENT_PREFERENCE,
+    TIME_PREFERENCE,
+    FAVORITE_CATEGORY,
+    ALLERGY,
+    CUSTOM_NOTE
+}

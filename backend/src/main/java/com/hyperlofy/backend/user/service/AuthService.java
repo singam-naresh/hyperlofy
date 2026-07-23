@@ -12,6 +12,7 @@ import com.hyperlofy.backend.user.entity.RefreshToken;
 import com.hyperlofy.backend.user.entity.User;
 import com.hyperlofy.backend.user.repository.RefreshTokenRepository;
 import com.hyperlofy.backend.user.repository.UserRepository;
+import com.hyperlofy.backend.wallet.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final WalletService walletService;
 
     @Transactional
     public AuthDto.TokenResponse register(AuthDto.RegisterRequest request) {
@@ -71,6 +73,7 @@ public class AuthService {
                         .preferredPaymentMethod("CARD")
                         .build();
                 customerRepository.save(customerProfile);
+                walletService.createWalletForUser(user.getId());
                 break;
 
             case AGENT:

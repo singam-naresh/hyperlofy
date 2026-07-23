@@ -1,8 +1,12 @@
 package com.hyperlofy.backend.payment.service;
 
 import com.hyperlofy.backend.common.exception.BusinessException;
+import com.hyperlofy.backend.order.dto.OrderStatusUpdateRequest;
 import com.hyperlofy.backend.order.entity.Order;
+import com.hyperlofy.backend.order.entity.OrderStatus;
 import com.hyperlofy.backend.order.repository.OrderRepository;
+import com.hyperlofy.backend.order.service.AssignmentService;
+import com.hyperlofy.backend.order.service.OrderService;
 import com.hyperlofy.backend.payment.entity.*;
 import com.hyperlofy.backend.payment.repository.PaymentRepository;
 import com.hyperlofy.backend.payment.repository.RefundRepository;
@@ -28,6 +32,8 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final RefundRepository refundRepository;
     private final OrderRepository orderRepository;
+    private final OrderService orderService;
+    private final AssignmentService assignmentService;
     private final UserRepository userRepository;
     private final WalletService walletService;
 
@@ -51,6 +57,16 @@ public class PaymentService {
                 orderId,
                 "Delivery fee payment for Order: " + order.getStoreName()
         );
+
+        orderService.updateOrderStatus(orderId, OrderStatusUpdateRequest.builder()
+                .nextStatus(OrderStatus.PAYMENT_PENDING)
+                .build());
+        orderService.updateOrderStatus(orderId, OrderStatusUpdateRequest.builder()
+                .nextStatus(OrderStatus.PAYMENT_SUCCESS)
+                .build());
+
+        // Automatically assign nearby available agent after successful payment
+        assignmentService.assignAgentToOrder(orderId);
 
         Payment payment = Payment.builder()
                 .order(order)
