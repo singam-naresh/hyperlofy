@@ -97,8 +97,8 @@ public class AssignmentService {
         User selectedAgent = null;
 
         for (UUID agentId : nearbyAgentIds) {
-            // Load agent profile
-            AgentProfile profile = agentRepository.findByUserId(agentId)
+            // Load agent profile with pessimistic write lock to prevent concurrent assignment race conditions
+            AgentProfile profile = agentRepository.findByUserIdForUpdate(agentId)
                     .orElse(null);
 
             if (profile == null) {
@@ -133,11 +133,20 @@ public class AssignmentService {
         // 6. Verify at least one qualified agent was found
         if (selectedAgentId == null) {
             log.warn("No qualified agents found for order {} after filtering", orderId);
-            throw new BusinessException(
-                    "No qualified agents available for assignment. Please try again later.",
-                    HttpStatus.SERVICE_UNAVAILABLE
-            );
+            // TODO: Automated background retry worker will pick up orders in UNASSIGNED audit state for periodic retry
+            AssignmentAudit audit = AssignmentAudit.builder()
+                    .orderId(orderId)
+                    .actionType("UNASSIGNED")
+                    .description("No available qualified agents in delivery area during payment success auto-assignment")
+                    .triggeredBy("PAYMENT_SUCCESS_SYSTEM")
+                    .build();
+            assignmentAuditRepository.save(audit);
+            return;
         }
+
+        // Lock agent availability to prevent concurrent double-booking
+        selectedAgentProfile.setAvailable(false);
+        agentRepository.save(selectedAgentProfile);
 
         // 7. Create AssignmentHistory record for audit trail
         AssignmentHistory history = AssignmentHistory.builder()

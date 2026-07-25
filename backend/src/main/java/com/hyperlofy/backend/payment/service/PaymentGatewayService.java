@@ -5,6 +5,8 @@ import com.hyperlofy.backend.ledger.service.LedgerService;
 import com.hyperlofy.backend.order.entity.Order;
 import com.hyperlofy.backend.order.entity.OrderStatus;
 import com.hyperlofy.backend.order.repository.OrderRepository;
+import com.hyperlofy.backend.order.service.AssignmentService;
+import com.hyperlofy.backend.order.service.OrderService;
 import com.hyperlofy.backend.payment.entity.*;
 import com.hyperlofy.backend.payment.repository.PaymentAuditRepository;
 import com.hyperlofy.backend.payment.repository.PaymentEventRepository;
@@ -37,6 +39,7 @@ public class PaymentGatewayService {
     private final UserRepository userRepository;
     private final RazorpayService razorpayService;
     private final LedgerService ledgerService;
+    private final AssignmentService assignmentService;
 
     /**
      * Creates a verified transaction order on Razorpay servers and maps to a local payment log.
@@ -113,7 +116,10 @@ public class PaymentGatewayService {
         // 4. Secure funds in double-entry Escrow Pool
         ledgerService.placeInEscrow(order.getId(), payment.getId(), payment.getAmount());
 
-        // 5. Save audit records
+        // 5. Automatically assign nearby available delivery agent
+        assignmentService.assignAgentToOrder(order.getId());
+
+        // 6. Save audit records
         logPaymentAudit(payment.getId(), "CAPTURE_PAYMENT", "COMPLETED", "Signature verified. Funds verified and placed in Escrow pool.");
 
         log.info("Transaction validated and captured. Order status set to PAYMENT_SUCCESS, Escrow locked for Order ID: {}", order.getId());
