@@ -110,6 +110,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/planning/**")
                         .hasRole("CUSTOMER")
 
+                        .requestMatchers("/api/v1/decision-history/**")
+                        .authenticated()
+
+                        .requestMatchers("/api/v1/optimizer/**")
+                        .authenticated()
+
                         // ===== Agent =====
                         .requestMatchers("/api/v1/agent/**")
                         .hasRole("AGENT")

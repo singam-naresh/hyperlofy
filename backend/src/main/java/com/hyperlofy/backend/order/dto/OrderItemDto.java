@@ -19,4 +19,13 @@ public class OrderItemDto {
     private BigDecimal estimatedPrice;
     private BigDecimal finalPrice;
     private String itemStatus;
+    // Added for inventory-aware builder
+    private UUID productId;
+    private String sku;
+    private String productName;
+    private UUID merchantId;
+    private Integer availableQuantity;
+    private Boolean available;
+    private BigDecimal subtotal;
+    private java.util.List<String> warnings;
 }
