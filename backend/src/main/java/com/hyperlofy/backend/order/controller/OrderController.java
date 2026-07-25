@@ -57,4 +57,9 @@ public class OrderController {
     public ResponseEntity<List<OrderResponse>> getAgentOrders(@PathVariable UUID agentId) {
         return ResponseEntity.ok(orderService.getAgentOrders(agentId));
     }
+
+    @GetMapping("/zone/{zoneId}")
+    public ResponseEntity<List<OrderResponse>> getOrdersByZone(@PathVariable UUID zoneId) {
+        return ResponseEntity.ok(orderService.getOrdersByZone(zoneId));
+    }
 }

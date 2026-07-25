@@ -1,5 +1,7 @@
 package com.hyperlofy.backend.order.service;
 
+import com.hyperlofy.backend.agent.entity.AgentProfile;
+import com.hyperlofy.backend.agent.repository.AgentRepository;
 import com.hyperlofy.backend.common.exception.BusinessException;
 import com.hyperlofy.backend.inventory.dto.InventoryReservationRequest;
 import com.hyperlofy.backend.inventory.dto.InventoryReservationResult;
@@ -40,6 +42,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
+    private final AgentRepository agentRepository;
     private final ZoneRepository zoneRepository;
     private final ZoneService zoneService;
     private final InventoryReservationService inventoryReservationService;
@@ -208,6 +211,16 @@ public class OrderService {
         order.setOrderStatus(OrderStatus.CANCELLED);
         Order saved = orderRepository.save(order);
 
+        // Unlock assigned agent availability if agent was assigned prior to cancellation
+        if (order.getAgent() != null) {
+            AgentProfile agentProfile = agentRepository.findByUserId(order.getAgent().getId()).orElse(null);
+            if (agentProfile != null) {
+                agentProfile.setAvailable(true);
+                agentRepository.save(agentProfile);
+                log.info("Unlocked assigned agent [{}] on order cancellation: {}", order.getAgent().getId(), orderId);
+            }
+        }
+
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         for (OrderItem item : items) {
             inventoryReservationService.releaseReservation(item.getId());
@@ -245,6 +258,17 @@ public class OrderService {
             throw new BusinessException("Access Denied: You cannot view this agent's orders", HttpStatus.FORBIDDEN);
         }
         return orderRepository.findByAgentIdOrderByCreatedAtDesc(agentId).stream()
+                .map(this::mapToOrderResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getOrdersByZone(UUID zoneId) {
+        User caller = getCurrentAuthenticatedUser();
+        if (caller.getRole() != Role.ADMIN && caller.getRole() != Role.SUPER_ADMIN) {
+            throw new BusinessException("Access Denied: You are not authorized to view orders for this zone", HttpStatus.FORBIDDEN);
+        }
+        return orderRepository.findByZoneIdOrderByCreatedAtDesc(zoneId).stream()
                 .map(this::mapToOrderResponse)
                 .collect(Collectors.toList());
     }
