@@ -1,9 +1,12 @@
 package com.hyperlofy.backend.order.service;
 
 import com.hyperlofy.backend.common.exception.BusinessException;
+import com.hyperlofy.backend.inventory.dto.InventoryReservationRequest;
+import com.hyperlofy.backend.inventory.dto.InventoryReservationResult;
+import com.hyperlofy.backend.inventory.service.InventoryReservationService;
+import com.hyperlofy.backend.order.dto.OrderItemDto;
 import com.hyperlofy.backend.order.dto.OrderRequest;
 import com.hyperlofy.backend.order.dto.OrderResponse;
-import com.hyperlofy.backend.order.dto.OrderItemDto;
 import com.hyperlofy.backend.order.dto.OrderStatusUpdateRequest;
 import com.hyperlofy.backend.order.entity.Order;
 import com.hyperlofy.backend.order.entity.OrderItem;
@@ -39,6 +42,7 @@ public class OrderService {
     private final UserRepository userRepository;
     private final ZoneRepository zoneRepository;
     private final ZoneService zoneService;
+    private final InventoryReservationService inventoryReservationService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -96,17 +100,38 @@ public class OrderService {
         Order saved = orderRepository.save(order);
 
         if (request.getItems() != null && !request.getItems().isEmpty()) {
-            List<OrderItem> items = request.getItems().stream()
-                    .map(dto -> OrderItem.builder()
-                            .order(saved)
-                            .itemName(dto.getItemName())
+            for (OrderItemDto dto : request.getItems()) {
+                OrderItem item = OrderItem.builder()
+                        .order(saved)
+                        .itemName(dto.getItemName())
+                        .quantity(dto.getQuantity())
+                        .estimatedPrice(dto.getEstimatedPrice())
+                        .finalPrice(dto.getFinalPrice())
+                        .itemStatus(dto.getItemStatus() != null ? dto.getItemStatus() : "AVAILABLE")
+                        .build();
+
+                OrderItem savedItem = orderItemRepository.save(item);
+
+                UUID merchantId = dto.getMerchantId() != null ? dto.getMerchantId() : request.getZoneId();
+                if (merchantId != null && (dto.getProductId() != null || dto.getSku() != null) && dto.getQuantity() > 0) {
+                    InventoryReservationRequest resReq = InventoryReservationRequest.builder()
+                            .reservationId(savedItem.getId())
+                            .merchantId(merchantId)
+                            .productId(dto.getProductId())
+                            .sku(dto.getSku())
                             .quantity(dto.getQuantity())
-                            .estimatedPrice(dto.getEstimatedPrice())
-                            .finalPrice(dto.getFinalPrice())
-                            .itemStatus(dto.getItemStatus() != null ? dto.getItemStatus() : "AVAILABLE")
-                            .build())
-                    .collect(Collectors.toList());
-            orderItemRepository.saveAll(items);
+                            .build();
+
+                    InventoryReservationResult resResult = inventoryReservationService.reserveInventory(resReq);
+                    if (!resResult.isSuccess()) {
+                        log.warn("Inventory reservation failed for item [{}] in order creation: {}", dto.getItemName(), resResult.getMessage());
+                        throw new BusinessException(
+                                "Inventory reservation failed for " + dto.getItemName() + ": " + resResult.getMessage(),
+                                HttpStatus.CONFLICT
+                        );
+                    }
+                }
+            }
         }
 
         log.info("Successfully created order for Client [{}]: Fee {}", customer.getEmail(), saved.getDeliveryFee());
@@ -152,6 +177,11 @@ public class OrderService {
                 throw new BusinessException("Compliance error: Invalid or missing delivery completion OTP validation code", HttpStatus.FORBIDDEN);
             }
             log.info("Delivery confirmation OTP verified successfully for order: {}", orderId);
+
+            List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+            for (OrderItem item : items) {
+                inventoryReservationService.confirmReservation(item.getId());
+            }
         }
 
         order.setOrderStatus(nextStatus);
@@ -177,6 +207,12 @@ public class OrderService {
 
         order.setOrderStatus(OrderStatus.CANCELLED);
         Order saved = orderRepository.save(order);
+
+        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+        for (OrderItem item : items) {
+            inventoryReservationService.releaseReservation(item.getId());
+        }
+
         log.info("Order cancelled successfully: {}", orderId);
         return mapToOrderResponse(saved);
     }
@@ -295,3 +331,4 @@ public class OrderService {
                 .build();
     }
 }
+
