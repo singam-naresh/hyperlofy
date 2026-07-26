@@ -3,6 +3,7 @@ package com.hyperlofy.backend.ledger.service;
 import com.hyperlofy.backend.common.exception.BusinessException;
 import com.hyperlofy.backend.agent.entity.AgentPayoutProfile;
 import com.hyperlofy.backend.agent.repository.AgentPayoutProfileRepository;
+import com.hyperlofy.backend.ledger.dto.RefundResponseDTO;
 import com.hyperlofy.backend.ledger.entity.*;
 import com.hyperlofy.backend.ledger.repository.*;
 import com.hyperlofy.backend.merchant.entity.MerchantLedger;
@@ -20,9 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -40,6 +43,7 @@ public class LedgerService {
     private final OrderItemRepository orderItemRepository;
     private final MerchantLedgerRepository merchantLedgerRepository;
     private final MerchantPayoutProfileRepository merchantPayoutProfileRepository;
+    private final RefundReconciliationRepository refundReconciliationRepository;
 
     /**
      * Records a double-entry debit/credit ledger booking securely.
@@ -231,6 +235,179 @@ public class LedgerService {
     }
 
     /**
+     * Processes full or partial refund reconciliation across pre-release and post-release escrow flows,
+     * maintaining immutable accounting entries and updating merchant/agent payout balances appropriately.
+     */
+    @Transactional
+    public RefundResponseDTO processRefundReconciliation(UUID orderId, BigDecimal requestedRefundAmount, String reason) {
+        // 1. Idempotency Check: Return existing completed reconciliation if already executed
+        Optional<RefundReconciliation> existingRec = refundReconciliationRepository.findByOrderId(orderId);
+        if (existingRec.isPresent() && "COMPLETED".equals(existingRec.get().getStatus())) {
+            log.info("[Refund Idempotent] Returning existing completed refund reconciliation for order: {}", orderId);
+            return mapToRefundResponseDTO(existingRec.get());
+        }
+
+        // 2. Fetch Escrow Transaction
+        EscrowTransaction escrow = escrowTransactionRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new BusinessException("Escrow txn not found for Order: " + orderId, HttpStatus.NOT_FOUND));
+
+        if ("REFUNDED".equals(escrow.getStatus())) {
+            throw new BusinessException("Order escrow has already been refunded for order: " + orderId, HttpStatus.BAD_REQUEST);
+        }
+
+        BigDecimal totalOrderAmount = escrow.getAmount();
+        BigDecimal actualRefundAmount = (requestedRefundAmount != null && requestedRefundAmount.compareTo(BigDecimal.ZERO) > 0)
+                ? requestedRefundAmount.min(totalOrderAmount)
+                : totalOrderAmount;
+
+        String refundType = (actualRefundAmount.compareTo(totalOrderAmount) >= 0) ? "FULL" : "PARTIAL";
+        String escrowStatusAtRefund = escrow.getStatus();
+
+        BigDecimal merchantAdjustment = BigDecimal.ZERO;
+        BigDecimal agentAdjustment = BigDecimal.ZERO;
+        BigDecimal platformAdjustment = BigDecimal.ZERO;
+
+        if ("HELD".equals(escrowStatusAtRefund)) {
+            // Pre-escrow release refund
+            escrow.setStatus("REFUNDED");
+            escrowTransactionRepository.save(escrow);
+
+            bookTransaction(
+                    "ESCROW_HOLDING_POOL",
+                    "USER_WALLET_CREDIT_" + orderId,
+                    actualRefundAmount,
+                    "REFUNDED",
+                    escrow.getId(),
+                    orderId,
+                    escrow.getPaymentId(),
+                    "Pre-release escrow refund issued to customer"
+            );
+        } else if ("RELEASED".equals(escrowStatusAtRefund)) {
+            // Post-escrow release refund with proportional adjustments
+            BigDecimal ratio = actualRefundAmount.divide(totalOrderAmount, 6, RoundingMode.HALF_UP);
+
+            // 1. Merchant Adjustment
+            Optional<Order> orderOpt = orderRepository.findById(orderId);
+            if (orderOpt.isPresent() && orderOpt.get().getMerchantId() != null) {
+                UUID merchantId = orderOpt.get().getMerchantId();
+                List<MerchantLedger> merchantLedgers = merchantLedgerRepository.findByMerchantId(merchantId);
+                MerchantLedger merchantLedger = merchantLedgers.stream()
+                        .filter(ml -> orderId.equals(ml.getOrderId()))
+                        .findFirst().orElse(null);
+
+                if (merchantLedger != null && merchantLedger.getMerchantShare().compareTo(BigDecimal.ZERO) > 0) {
+                    merchantAdjustment = merchantLedger.getMerchantShare().multiply(ratio).setScale(2, RoundingMode.HALF_UP);
+                    if (merchantAdjustment.compareTo(BigDecimal.ZERO) > 0) {
+                        String sourceAccount = "SETTLED".equals(merchantLedger.getStatus())
+                                ? "MERCHANT_BANK_OUTFLOW_" + merchantId
+                                : "MERCHANT_EARNINGS_HOLDING_" + merchantId;
+
+                        bookTransaction(
+                                sourceAccount,
+                                "USER_WALLET_CREDIT_" + orderId,
+                                merchantAdjustment,
+                                "REFUND_MERCHANT_ADJUSTMENT",
+                                merchantLedger.getId(),
+                                orderId,
+                                escrow.getPaymentId(),
+                                "Merchant revenue clawback adjustment"
+                        );
+
+                        final BigDecimal finalMerchantAdj = merchantAdjustment;
+                        merchantPayoutProfileRepository.findByMerchantId(merchantId).ifPresent(profile -> {
+                            BigDecimal updatedBalance = profile.getCurrentBalance().subtract(finalMerchantAdj).max(BigDecimal.ZERO);
+                            profile.setCurrentBalance(updatedBalance);
+                            merchantPayoutProfileRepository.save(profile);
+                        });
+                    }
+                }
+            }
+
+            // 2. Agent & Platform Adjustments
+            CommissionLedger commissionLedger = commissionLedgerRepository.findAll().stream()
+                    .filter(cl -> orderId.equals(cl.getOrderId()))
+                    .findFirst().orElse(null);
+
+            if (commissionLedger != null) {
+                if (commissionLedger.getAgentShare().compareTo(BigDecimal.ZERO) > 0) {
+                    agentAdjustment = commissionLedger.getAgentShare().multiply(ratio).setScale(2, RoundingMode.HALF_UP);
+                    if (agentAdjustment.compareTo(BigDecimal.ZERO) > 0) {
+                        bookTransaction(
+                                "AGENT_EARNINGS_HOLDING_" + commissionLedger.getAgentId(),
+                                "USER_WALLET_CREDIT_" + orderId,
+                                agentAdjustment,
+                                "REFUND_AGENT_ADJUSTMENT",
+                                commissionLedger.getId(),
+                                orderId,
+                                escrow.getPaymentId(),
+                                "Agent earnings clawback adjustment"
+                        );
+
+                        final BigDecimal finalAgentAdj = agentAdjustment;
+                        agentPayoutProfileRepository.findByAgentId(commissionLedger.getAgentId()).ifPresent(profile -> {
+                            BigDecimal updatedBalance = profile.getCurrentBalance().subtract(finalAgentAdj).max(BigDecimal.ZERO);
+                            profile.setCurrentBalance(updatedBalance);
+                            agentPayoutProfileRepository.save(profile);
+                        });
+                    }
+                }
+
+                if (commissionLedger.getCommissionAmount().compareTo(BigDecimal.ZERO) > 0) {
+                    platformAdjustment = commissionLedger.getCommissionAmount().multiply(ratio).setScale(2, RoundingMode.HALF_UP);
+                    if (platformAdjustment.compareTo(BigDecimal.ZERO) > 0) {
+                        bookTransaction(
+                                "PLATFORM_REVENUE",
+                                "USER_WALLET_CREDIT_" + orderId,
+                                platformAdjustment,
+                                "REFUND_PLATFORM_ADJUSTMENT",
+                                commissionLedger.getId(),
+                                orderId,
+                                escrow.getPaymentId(),
+                                "Platform revenue refund adjustment"
+                        );
+                    }
+                }
+            }
+        }
+
+        RefundReconciliation reconciliation = RefundReconciliation.builder()
+                .orderId(orderId)
+                .refundType(refundType)
+                .escrowStatusAtRefund(escrowStatusAtRefund)
+                .totalOrderAmount(totalOrderAmount)
+                .refundAmount(actualRefundAmount)
+                .merchantAdjustment(merchantAdjustment)
+                .agentAdjustment(agentAdjustment)
+                .platformAdjustment(platformAdjustment)
+                .status("COMPLETED")
+                .reason(reason)
+                .build();
+
+        reconciliation = refundReconciliationRepository.save(reconciliation);
+        log.info("[Refund Reconciled] Order: {}, Type: {}, RefundAmount: {}, MerchantAdj: {}, AgentAdj: {}, PlatformAdj: {}",
+                orderId, refundType, actualRefundAmount, merchantAdjustment, agentAdjustment, platformAdjustment);
+
+        return mapToRefundResponseDTO(reconciliation);
+    }
+
+    private RefundResponseDTO mapToRefundResponseDTO(RefundReconciliation r) {
+        return RefundResponseDTO.builder()
+                .id(r.getId())
+                .orderId(r.getOrderId())
+                .refundType(r.getRefundType())
+                .escrowStatusAtRefund(r.getEscrowStatusAtRefund())
+                .totalOrderAmount(r.getTotalOrderAmount())
+                .refundAmount(r.getRefundAmount())
+                .merchantAdjustment(r.getMerchantAdjustment())
+                .agentAdjustment(r.getAgentAdjustment())
+                .platformAdjustment(r.getPlatformAdjustment())
+                .status(r.getStatus())
+                .reason(r.getReason())
+                .createdAt(r.getCreatedAt())
+                .build();
+    }
+
+    /**
      * Ledger verification service: Sum of debits and credits must perfectly equate.
      */
     @Transactional(readOnly = true)
@@ -393,4 +570,5 @@ public class LedgerService {
         return settlementBatchRepository.save(batch);
     }
 }
+
 
