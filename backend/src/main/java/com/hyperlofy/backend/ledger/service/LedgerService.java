@@ -5,6 +5,14 @@ import com.hyperlofy.backend.agent.entity.AgentPayoutProfile;
 import com.hyperlofy.backend.agent.repository.AgentPayoutProfileRepository;
 import com.hyperlofy.backend.ledger.entity.*;
 import com.hyperlofy.backend.ledger.repository.*;
+import com.hyperlofy.backend.merchant.entity.MerchantLedger;
+import com.hyperlofy.backend.merchant.entity.MerchantPayoutProfile;
+import com.hyperlofy.backend.merchant.repository.MerchantLedgerRepository;
+import com.hyperlofy.backend.merchant.repository.MerchantPayoutProfileRepository;
+import com.hyperlofy.backend.order.entity.Order;
+import com.hyperlofy.backend.order.entity.OrderItem;
+import com.hyperlofy.backend.order.repository.OrderItemRepository;
+import com.hyperlofy.backend.order.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -14,7 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -26,6 +36,10 @@ public class LedgerService {
     private final CommissionLedgerRepository commissionLedgerRepository;
     private final SettlementBatchRepository settlementBatchRepository;
     private final AgentPayoutProfileRepository agentPayoutProfileRepository;
+    private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final MerchantLedgerRepository merchantLedgerRepository;
+    private final MerchantPayoutProfileRepository merchantPayoutProfileRepository;
 
     /**
      * Records a double-entry debit/credit ledger booking securely.
@@ -89,7 +103,8 @@ public class LedgerService {
     }
 
     /**
-     * Releases Escrow funds, records agent split-commissions, and transfers platform revenue shares.
+     * Releases Escrow funds, records agent split-commissions, transfers platform revenue shares,
+     * and books merchant product sales earnings.
      */
     @Transactional
     public void releaseEscrow(UUID orderId, UUID agentId) {
@@ -144,6 +159,45 @@ public class LedgerService {
                 .agentShare(agentShare)
                 .build();
         commissionLedgerRepository.save(commission);
+
+        // Merchant product sales revenue split processing (Phase 1)
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order != null && order.getMerchantId() != null) {
+            List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+            BigDecimal merchantSubtotal = BigDecimal.ZERO;
+            for (OrderItem item : items) {
+                BigDecimal itemPrice = item.getFinalPrice() != null ? item.getFinalPrice() : item.getEstimatedPrice();
+                if (itemPrice != null) {
+                    merchantSubtotal = merchantSubtotal.add(itemPrice.multiply(BigDecimal.valueOf(item.getQuantity())));
+                }
+            }
+
+            if (merchantSubtotal.compareTo(BigDecimal.ZERO) > 0) {
+                bookTransaction(
+                        "ESCROW_HOLDING_POOL",
+                        "MERCHANT_EARNINGS_HOLDING_" + order.getMerchantId(),
+                        merchantSubtotal,
+                        "MERCHANT_CREDIT",
+                        escrow.getId(),
+                        orderId,
+                        escrow.getPaymentId(),
+                        "100% Merchant product sales split"
+                );
+
+                MerchantLedger merchantLedger = MerchantLedger.builder()
+                        .merchantId(order.getMerchantId())
+                        .orderId(orderId)
+                        .itemSubtotal(merchantSubtotal)
+                        .merchantShare(merchantSubtotal)
+                        .status("UNPAID")
+                        .settlementBatchId(null)
+                        .build();
+                merchantLedgerRepository.save(merchantLedger);
+                log.info("[Merchant Escrow Released] Order: {}, Merchant: {}, Subtotal: {}", orderId, order.getMerchantId(), merchantSubtotal);
+            }
+        } else {
+            log.info("[Merchant Escrow Skipped] Order: {} (Legacy order or missing merchantId)", orderId);
+        }
 
         log.info("[Escrow Released] Order: {}, Commission: {}, Agent Share: {}", orderId, commissionAmount, agentShare);
     }
@@ -222,7 +276,7 @@ public class LedgerService {
     }
 
     /**
-     * Settlement Service: Aggregates Open/Holding agent balances, moves them to Agent Payout profiles.
+     * Settlement Service: Aggregates Open/Holding agent & merchant balances, moves them to Payout profiles.
      */
     @Transactional
     public SettlementBatch triggerSettlementBatch() {
@@ -243,7 +297,7 @@ public class LedgerService {
 
         BigDecimal processAmount = BigDecimal.ZERO;
 
-        // Iterate over agent payout profiles to settle outstanding balances holding in agent earnings
+        // 1. Iterate over agent payout profiles to settle outstanding balances holding in agent earnings
         List<AgentPayoutProfile> profiles = agentPayoutProfileRepository.findAll();
         for (AgentPayoutProfile profile : profiles) {
             UUID agentId = profile.getAgentId();
@@ -276,6 +330,62 @@ public class LedgerService {
             }
         }
 
+        // 2. Process merchant settlements (Phase 2)
+        List<MerchantLedger> unpaidMerchantLedgers = merchantLedgerRepository.findByStatus("UNPAID");
+        if (!unpaidMerchantLedgers.isEmpty()) {
+            Map<UUID, List<MerchantLedger>> groupedByMerchant = unpaidMerchantLedgers.stream()
+                    .collect(Collectors.groupingBy(MerchantLedger::getMerchantId));
+
+            for (Map.Entry<UUID, List<MerchantLedger>> entry : groupedByMerchant.entrySet()) {
+                UUID merchantId = entry.getKey();
+                List<MerchantLedger> ledgers = entry.getValue();
+
+                BigDecimal dueMerchantAmount = ledgers.stream()
+                        .map(MerchantLedger::getMerchantShare)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                if (dueMerchantAmount.compareTo(BigDecimal.ZERO) > 0) {
+                    // Book payout transfer transaction out of holding to bank outflow
+                    bookTransaction(
+                            "MERCHANT_EARNINGS_HOLDING_" + merchantId,
+                            "MERCHANT_BANK_OUTFLOW_" + merchantId,
+                            dueMerchantAmount,
+                            "PAYOUT",
+                            batch.getId(),
+                            null,
+                            null,
+                            "Settle merchant earnings via batch: " + batch.getId()
+                    );
+
+                    // Update merchant ledgers to SETTLED
+                    for (MerchantLedger ml : ledgers) {
+                        ml.setStatus("SETTLED");
+                        ml.setSettlementBatchId(batch.getId());
+                        merchantLedgerRepository.save(ml);
+                    }
+
+                    // Update or initialize merchant payout profile balance
+                    MerchantPayoutProfile merchantProfile = merchantPayoutProfileRepository.findByMerchantId(merchantId)
+                            .orElseGet(() -> MerchantPayoutProfile.builder()
+                                    .merchantId(merchantId)
+                                    .bankHolderName("Merchant Store Account")
+                                    .bankAccountNumber("N/A")
+                                    .bankIfscCode("N/A")
+                                    .currentBalance(BigDecimal.ZERO)
+                                    .cumulativeEarnings(BigDecimal.ZERO)
+                                    .build());
+
+                    merchantProfile.setCumulativeEarnings(merchantProfile.getCumulativeEarnings().add(dueMerchantAmount));
+                    merchantProfile.setCurrentBalance(merchantProfile.getCurrentBalance().add(dueMerchantAmount));
+                    merchantPayoutProfileRepository.save(merchantProfile);
+
+                    processAmount = processAmount.add(dueMerchantAmount);
+                    log.info("[Merchant Settlement Executed] Merchant: {}, Amount: {}, Settled Records: {}", 
+                            merchantId, dueMerchantAmount, ledgers.size());
+                }
+            }
+        }
+
         batch.setTotalSettlementAmount(processAmount);
         batch.setBatchStatus("COMPLETED");
         batch.setProcessedAt(OffsetDateTime.now());
@@ -283,3 +393,4 @@ public class LedgerService {
         return settlementBatchRepository.save(batch);
     }
 }
+
