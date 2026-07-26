@@ -77,6 +77,20 @@ public class AgentProfile extends BaseEntity {
     @Column(name = "suspended_at")
     private OffsetDateTime suspendedAt;
 
+    @Column(name = "work_status", nullable = false, length = 30)
+    @Builder.Default
+    private String workStatus = "OFFLINE";
+
+    @Column(name = "emergency_contact", length = 50)
+    private String emergencyContact;
+
+    @Column(name = "driving_licence", length = 50)
+    private String drivingLicence;
+
+    @Column(name = "rating", nullable = false, precision = 3, scale = 2)
+    @Builder.Default
+    private java.math.BigDecimal rating = new java.math.BigDecimal("5.00");
+
     @Column(name = "suspension_reason")
     private String suspensionReason;
 }
