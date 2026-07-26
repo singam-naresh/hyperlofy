@@ -19,6 +19,8 @@ public class OrderRequest {
     @NotNull(message = "Zone ID is required")
     private UUID zoneId;
 
+    private UUID merchantId;
+
     @NotBlank(message = "Store Name is required")
     private String storeName;
 

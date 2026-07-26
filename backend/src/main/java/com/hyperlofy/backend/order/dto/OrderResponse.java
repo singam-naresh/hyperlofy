@@ -18,6 +18,7 @@ public class OrderResponse {
     private String agentName;
     private UUID zoneId;
     private String zoneName;
+    private UUID merchantId;
     private String storeName;
     private Double storeLatitude;
     private Double storeLongitude;

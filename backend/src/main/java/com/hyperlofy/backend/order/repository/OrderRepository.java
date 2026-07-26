@@ -14,4 +14,5 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     List<Order> findByAgentIdOrderByCreatedAtDesc(UUID agentId);
     List<Order> findByOrderStatusOrderByCreatedAtDesc(OrderStatus status);
     List<Order> findByZoneIdOrderByCreatedAtDesc(UUID zoneId);
+    List<Order> findByMerchantIdOrderByCreatedAtDesc(UUID merchantId);
 }

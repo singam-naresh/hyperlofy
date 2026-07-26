@@ -189,6 +189,7 @@ public class OrderRequestBuilderService {
         OrderRequest orderRequest = OrderRequest.builder()
                 .customerId(draft.getCustomerId())
                 .zoneId(merchantId)
+                .merchantId(merchantId)
                 .storeName(merchantName != null ? merchantName : "Hyperlofy Store")
                 .storeLatitude(storeLat == null ? 0.0 : storeLat)
                 .storeLongitude(storeLon == null ? 0.0 : storeLon)

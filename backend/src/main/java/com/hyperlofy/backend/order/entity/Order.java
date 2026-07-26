@@ -20,6 +20,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Entity
 @Table(name = "orders")
@@ -43,6 +44,9 @@ public class Order extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "zone_id", nullable = false)
     private Zone zone;
+
+    @Column(name = "merchant_id")
+    private UUID merchantId;
 
     @Column(name = "store_name", nullable = false, length = 150)
     private String storeName;
