@@ -6,6 +6,7 @@ import com.hyperlofy.backend.common.exception.BusinessException;
 import com.hyperlofy.backend.inventory.dto.InventoryReservationRequest;
 import com.hyperlofy.backend.inventory.dto.InventoryReservationResult;
 import com.hyperlofy.backend.inventory.service.InventoryReservationService;
+import com.hyperlofy.backend.ledger.service.LedgerService;
 import com.hyperlofy.backend.order.dto.OrderItemDto;
 import com.hyperlofy.backend.order.dto.OrderRequest;
 import com.hyperlofy.backend.order.dto.OrderResponse;
@@ -46,6 +47,7 @@ public class OrderService {
     private final ZoneRepository zoneRepository;
     private final ZoneService zoneService;
     private final InventoryReservationService inventoryReservationService;
+    private final LedgerService ledgerService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -184,6 +186,10 @@ public class OrderService {
             List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
             for (OrderItem item : items) {
                 inventoryReservationService.confirmReservation(item.getId());
+            }
+
+            if (order.getAgent() != null) {
+                ledgerService.releaseEscrow(order.getId(), order.getAgent().getId());
             }
         }
 
