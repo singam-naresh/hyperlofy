@@ -6,6 +6,8 @@ import com.hyperlofy.backend.platform.entity.*;
 import com.hyperlofy.backend.platform.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,11 +36,13 @@ public class PlatformAdministrationService {
 
     // --- MODULE 1: COUPON ENGINE ---
     @Transactional(readOnly = true)
+    @Cacheable(value = "coupons", key = "'all_coupons'")
     public List<Coupon> getAllCoupons() {
         return couponRepository.findAll();
     }
 
     @Transactional
+    @CacheEvict(value = "coupons", allEntries = true)
     public Coupon createCoupon(Coupon coupon) {
         if (couponRepository.findByCode(coupon.getCode()).isPresent()) {
             throw new BusinessException("Coupon code already exists: " + coupon.getCode(), HttpStatus.CONFLICT);
@@ -47,6 +51,7 @@ public class PlatformAdministrationService {
     }
 
     @Transactional
+    @CacheEvict(value = "coupons", allEntries = true)
     public Coupon setCouponActive(UUID couponId, boolean active) {
         Coupon coupon = couponRepository.findById(couponId)
                 .orElseThrow(() -> new BusinessException("Coupon not found: " + couponId, HttpStatus.NOT_FOUND));
@@ -55,6 +60,7 @@ public class PlatformAdministrationService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "coupons", key = "#code")
     public CouponValidationResultDTO validateCoupon(String code, BigDecimal orderSubtotal) {
         Coupon coupon = couponRepository.findByCode(code)
                 .orElseThrow(() -> new BusinessException("Invalid coupon code: " + code, HttpStatus.NOT_FOUND));
@@ -91,16 +97,19 @@ public class PlatformAdministrationService {
 
     // --- MODULE 2: CAMPAIGN & BANNERS ---
     @Transactional(readOnly = true)
+    @Cacheable(value = "customer_home_feed", key = "'all_banners'")
     public List<Banner> getAllBanners() {
         return bannerRepository.findAll();
     }
 
     @Transactional
+    @CacheEvict(value = "customer_home_feed", allEntries = true)
     public Banner createBanner(Banner banner) {
         return bannerRepository.save(banner);
     }
 
     @Transactional
+    @CacheEvict(value = "customer_home_feed", allEntries = true)
     public Banner setBannerActive(UUID bannerId, boolean active) {
         Banner banner = bannerRepository.findById(bannerId)
                 .orElseThrow(() -> new BusinessException("Banner not found: " + bannerId, HttpStatus.NOT_FOUND));
@@ -110,23 +119,27 @@ public class PlatformAdministrationService {
 
     // --- MODULE 3: CATEGORY MANAGEMENT ---
     @Transactional(readOnly = true)
+    @Cacheable(value = "customer_home_feed", key = "'all_categories'")
     public List<ProductCategory> getAllCategories() {
         return categoryRepository.findAll();
     }
 
     @Transactional
+    @CacheEvict(value = "customer_home_feed", allEntries = true)
     public ProductCategory createCategory(ProductCategory category) {
         return categoryRepository.save(category);
     }
 
     // --- MODULE 5: CMS PAGES ---
     @Transactional(readOnly = true)
+    @Cacheable(value = "cms_pages", key = "#slug")
     public CmsPage getCmsPage(String slug) {
         return cmsPageRepository.findBySlug(slug)
                 .orElseThrow(() -> new BusinessException("CMS page not found: " + slug, HttpStatus.NOT_FOUND));
     }
 
     @Transactional
+    @CacheEvict(value = "cms_pages", key = "#page.slug")
     public CmsPage saveCmsPage(CmsPage page) {
         return cmsPageRepository.save(page);
     }
@@ -170,11 +183,13 @@ public class PlatformAdministrationService {
 
     // --- MODULE 10: CONFIGURATIONS ---
     @Transactional(readOnly = true)
+    @Cacheable(value = "platform_configurations", key = "'all_configs'")
     public List<PlatformConfiguration> getConfigurations() {
         return configurationRepository.findAll();
     }
 
     @Transactional
+    @CacheEvict(value = "platform_configurations", allEntries = true)
     public PlatformConfiguration updateConfiguration(String key, String value) {
         PlatformConfiguration config = configurationRepository.findByConfigKey(key)
                 .orElseGet(() -> PlatformConfiguration.builder().configKey(key).configGroup("SYSTEM").build());
@@ -184,11 +199,13 @@ public class PlatformAdministrationService {
 
     // --- MODULE 12: FEATURE FLAGS ---
     @Transactional(readOnly = true)
+    @Cacheable(value = "feature_flags", key = "'all_flags'")
     public List<FeatureFlag> getFeatureFlags() {
         return featureFlagRepository.findAll();
     }
 
     @Transactional
+    @CacheEvict(value = "feature_flags", allEntries = true)
     public FeatureFlag toggleFeatureFlag(String key, boolean enabled) {
         FeatureFlag flag = featureFlagRepository.findByFlagKey(key)
                 .orElseGet(() -> FeatureFlag.builder().flagKey(key).flagName(key).description("Dynamic feature flag").build());
