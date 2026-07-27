@@ -15,6 +15,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -47,6 +48,12 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
 
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.deny())
+                        .contentTypeOptions(content -> {})
+                        .referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                )
 
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -87,7 +94,7 @@ public class SecurityConfig {
 
                         // ===== Customer =====
                         .requestMatchers("/api/v1/customer/**")
-                        .hasRole("CUSTOMER")
+                        .hasAnyRole("CUSTOMER", "ADMIN", "SUPER_ADMIN")
 
                         .requestMatchers("/api/v1/order-builder/**")
                         .hasRole("CUSTOMER")
@@ -102,9 +109,6 @@ public class SecurityConfig {
                         .authenticated()
 
                         .requestMatchers("/api/v1/intent/**")
-                        .hasRole("CUSTOMER")
-
-                        .requestMatchers("/api/v1/recommendations/**")
                         .hasRole("CUSTOMER")
 
                         .requestMatchers("/api/v1/planning/**")
@@ -152,10 +156,11 @@ public class SecurityConfig {
                 "Authorization",
                 "Content-Type",
                 "X-Requested-With",
-                "X-Razorpay-Signature"
+                "X-Razorpay-Signature",
+                "X-Idempotency-Key"
         ));
 
-        configuration.setExposedHeaders(Collections.singletonList("Authorization"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "X-RateLimit-Limit", "X-RateLimit-Remaining"));
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
