@@ -31,7 +31,7 @@ public class AdminAuditLog extends BaseEntity {
     @Column(name = "admin_email", nullable = false, length = 100)
     private String adminEmail;
 
-    @Column(name = "action_type", nullable = false, length = 100) // APPROVED_AGENT, SUSPENDED_AGENT, APPROVED_REFUND, CREATED_ZONE
+    @Column(name = "action_type", nullable = false, length = 100)
     private String actionType;
 
     @Column(name = "action_summary", nullable = false, columnDefinition = "TEXT")

@@ -11,4 +11,5 @@ import java.util.UUID;
 public interface AdminAuditLogRepository extends JpaRepository<AdminAuditLog, UUID> {
     List<AdminAuditLog> findByAdminIdOrderByCreatedAtDesc(UUID adminId);
     List<AdminAuditLog> findByActionTypeOrderByCreatedAtDesc(String actionType);
+    List<AdminAuditLog> findAllByOrderByCreatedAtDesc();
 }
