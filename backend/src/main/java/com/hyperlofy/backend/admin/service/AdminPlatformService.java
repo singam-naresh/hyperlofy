@@ -3,7 +3,6 @@ package com.hyperlofy.backend.admin.service;
 import com.hyperlofy.backend.admin.dto.*;
 import com.hyperlofy.backend.admin.entity.AdminAuditLog;
 import com.hyperlofy.backend.admin.repository.AdminAuditLogRepository;
-import com.hyperlofy.backend.agent.entity.AgentPayoutProfile;
 import com.hyperlofy.backend.agent.entity.AgentProfile;
 import com.hyperlofy.backend.agent.entity.WithdrawalRequest;
 import com.hyperlofy.backend.agent.repository.AgentPayoutProfileRepository;
@@ -12,7 +11,6 @@ import com.hyperlofy.backend.agent.repository.WithdrawalRequestRepository;
 import com.hyperlofy.backend.common.exception.BusinessException;
 import com.hyperlofy.backend.delivery.dto.DeliveryAnalyticsDTO;
 import com.hyperlofy.backend.delivery.dto.DeliveryEarningsDTO;
-import com.hyperlofy.backend.delivery.dto.DeliveryOrderResponseDTO;
 import com.hyperlofy.backend.delivery.service.DeliveryPlatformService;
 import com.hyperlofy.backend.inventory.entity.Inventory;
 import com.hyperlofy.backend.inventory.repository.InventoryRepository;
@@ -23,7 +21,6 @@ import com.hyperlofy.backend.ledger.repository.RefundReconciliationRepository;
 import com.hyperlofy.backend.merchant.dto.MerchantAnalyticsDTO;
 import com.hyperlofy.backend.merchant.dto.MerchantSettlementDTO;
 import com.hyperlofy.backend.merchant.entity.MerchantLedger;
-import com.hyperlofy.backend.merchant.entity.MerchantPayoutProfile;
 import com.hyperlofy.backend.merchant.entity.MerchantProfile;
 import com.hyperlofy.backend.merchant.repository.MerchantLedgerRepository;
 import com.hyperlofy.backend.merchant.repository.MerchantPayoutProfileRepository;
@@ -40,7 +37,8 @@ import com.hyperlofy.backend.user.repository.UserRepository;
 import com.hyperlofy.backend.zone.entity.Zone;
 import com.hyperlofy.backend.zone.repository.ZoneRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -55,10 +53,11 @@ import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminPlatformService {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminPlatformService.class);
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
@@ -145,29 +144,30 @@ public class AdminPlatformService {
         List<Inventory> inventoryItems = inventoryRepository.findAll();
         long lowStockCount = inventoryItems.stream().filter(i -> i.getAvailableQuantity() != null && i.getLowStockThreshold() != null && i.getAvailableQuantity() <= i.getLowStockThreshold()).count();
 
-        return AdminExecutiveDashboardDTO.builder()
-                .totalOrders(totalOrders)
-                .todayOrders(todayOrders)
-                .pendingOrders(pending)
-                .preparingOrders(preparing)
-                .outForDeliveryOrders(outForDelivery)
-                .deliveredOrders(delivered)
-                .cancelledOrders(cancelled)
-                .refundedOrders(refunded)
-                .registeredCustomers(customers)
-                .activeMerchants(activeMerchants)
-                .activeDeliveryPartners(activeAgents)
-                .onlineDeliveryPartners(onlineAgents)
-                .todayRevenue(todayRevenue)
-                .weeklyRevenue(weeklyRevenue)
-                .monthlyRevenue(monthlyRevenue)
-                .platformCommission(platformCommission)
-                .pendingRefunds(pendingRefunds)
-                .pendingSettlements(pendingSettlements)
-                .openWithdrawals(openWithdrawals)
-                .lowStockProductsCount(lowStockCount)
-                .systemHealthSummary("HEALTHY - ALL SYSTEMS OPERATIONAL")
-                .build();
+        AdminExecutiveDashboardDTO dto = new AdminExecutiveDashboardDTO();
+        dto.setTotalOrders(totalOrders);
+        dto.setTodayOrders(todayOrders);
+        dto.setPendingOrders(pending);
+        dto.setPreparingOrders(preparing);
+        dto.setOutForDeliveryOrders(outForDelivery);
+        dto.setDeliveredOrders(delivered);
+        dto.setCancelledOrders(cancelled);
+        dto.setRefundedOrders(refunded);
+        dto.setRegisteredCustomers(customers);
+        dto.setActiveMerchants(activeMerchants);
+        dto.setActiveDeliveryPartners(activeAgents);
+        dto.setOnlineDeliveryPartners(onlineAgents);
+        dto.setTodayRevenue(todayRevenue);
+        dto.setWeeklyRevenue(weeklyRevenue);
+        dto.setMonthlyRevenue(monthlyRevenue);
+        dto.setPlatformCommission(platformCommission);
+        dto.setPendingRefunds(pendingRefunds);
+        dto.setPendingSettlements(pendingSettlements);
+        dto.setOpenWithdrawals(openWithdrawals);
+        dto.setLowStockProductsCount(lowStockCount);
+        dto.setSystemHealthSummary("HEALTHY - ALL SYSTEMS OPERATIONAL");
+
+        return dto;
     }
 
     // --- MODULE 2: LIVE ORDER MONITORING ---
@@ -387,17 +387,18 @@ public class AdminPlatformService {
 
         List<WithdrawalRequest> withdrawals = withdrawalRequestRepository.findAll();
 
-        return AdminFinanceDashboardDTO.builder()
-                .escrowPoolBalance(new BigDecimal("150000.00")) // Standard escrow balance tracking threshold
-                .platformRevenue(platformRevenue)
-                .pendingMerchantSettlementBalance(pendingMerchantBalance)
-                .pendingAgentSettlementBalance(pendingAgentBalance)
-                .totalRefundsReconciled(totalRefunds)
-                .recentRefunds(refunds)
-                .merchantLedgers(merchantLedgers)
-                .commissionLedgers(commissionLedgers)
-                .withdrawalRequests(withdrawals)
-                .build();
+        AdminFinanceDashboardDTO dto = new AdminFinanceDashboardDTO();
+        dto.setEscrowPoolBalance(new BigDecimal("150000.00"));
+        dto.setPlatformRevenue(platformRevenue);
+        dto.setPendingMerchantSettlementBalance(pendingMerchantBalance);
+        dto.setPendingAgentSettlementBalance(pendingAgentBalance);
+        dto.setTotalRefundsReconciled(totalRefunds);
+        dto.setRecentRefunds(refunds);
+        dto.setMerchantLedgers(merchantLedgers);
+        dto.setCommissionLedgers(commissionLedgers);
+        dto.setWithdrawalRequests(withdrawals);
+
+        return dto;
     }
 
     // --- MODULE 7: INVENTORY MONITORING ---
@@ -429,14 +430,15 @@ public class AdminPlatformService {
         List<Inventory> outOfStock = getOutOfStockInventory();
         long inStock = total - lowStock.size() - outOfStock.size();
 
-        return AdminInventoryStatsDTO.builder()
-                .totalItemsCount(total)
-                .inStockCount(Math.max(0, inStock))
-                .lowStockCount((long) lowStock.size())
-                .outOfStockCount((long) outOfStock.size())
-                .lowStockItems(lowStock)
-                .outOfStockItems(outOfStock)
-                .build();
+        AdminInventoryStatsDTO dto = new AdminInventoryStatsDTO();
+        dto.setTotalItemsCount(total);
+        dto.setInStockCount(Math.max(0, inStock));
+        dto.setLowStockCount((long) lowStock.size());
+        dto.setOutOfStockCount((long) outOfStock.size());
+        dto.setLowStockItems(lowStock);
+        dto.setOutOfStockItems(outOfStock);
+
+        return dto;
     }
 
     // --- MODULE 8: ZONE ADMINISTRATION ---
@@ -483,40 +485,43 @@ public class AdminPlatformService {
         long count = ledgers.size();
         BigDecimal avg = count > 0 ? totalVal.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 
-        return AdminReportResponseDTO.builder()
-                .reportType("REVENUE_SUMMARY")
-                .periodWindow(startDate + " to " + endDate)
-                .totalCount(count)
-                .totalValuation(totalVal)
-                .averageValue(avg)
-                .summaryText("Consolidated gross revenue report for window " + startDate + " to " + endDate)
-                .build();
+        AdminReportResponseDTO dto = new AdminReportResponseDTO();
+        dto.setReportType("REVENUE_SUMMARY");
+        dto.setPeriodWindow(startDate + " to " + endDate);
+        dto.setTotalCount(count);
+        dto.setTotalValuation(totalVal);
+        dto.setAverageValue(avg);
+        dto.setSummaryText("Consolidated gross revenue report for window " + startDate + " to " + endDate);
+
+        return dto;
     }
 
     @Transactional(readOnly = true)
     public AdminReportResponseDTO getOrderReport(String startDate, String endDate) {
         List<Order> orders = orderRepository.findAll();
         long count = orders.size();
-        return AdminReportResponseDTO.builder()
-                .reportType("ORDERS_SUMMARY")
-                .periodWindow(startDate + " to " + endDate)
-                .totalCount(count)
-                .totalValuation(BigDecimal.valueOf(count).multiply(new BigDecimal("150.00")))
-                .averageValue(new BigDecimal("150.00"))
-                .summaryText("Consolidated order volume report for window " + startDate + " to " + endDate)
-                .build();
+
+        AdminReportResponseDTO dto = new AdminReportResponseDTO();
+        dto.setReportType("ORDERS_SUMMARY");
+        dto.setPeriodWindow(startDate + " to " + endDate);
+        dto.setTotalCount(count);
+        dto.setTotalValuation(BigDecimal.valueOf(count).multiply(new BigDecimal("150.00")));
+        dto.setAverageValue(new BigDecimal("150.00"));
+        dto.setSummaryText("Consolidated order volume report for window " + startDate + " to " + endDate);
+
+        return dto;
     }
 
     // --- MODULE 10: AUDIT LOGS ---
     @Transactional
     public void logAdminAction(UUID adminId, String adminEmail, String actionType, String actionSummary, String ipAddress) {
-        AdminAuditLog logEntry = AdminAuditLog.builder()
-                .adminId(adminId)
-                .adminEmail(adminEmail)
-                .actionType(actionType)
-                .actionSummary(actionSummary)
-                .ipAddress(ipAddress != null ? ipAddress : "127.0.0.1")
-                .build();
+        AdminAuditLog logEntry = new AdminAuditLog();
+        logEntry.setAdminId(adminId);
+        logEntry.setAdminEmail(adminEmail);
+        logEntry.setActionType(actionType);
+        logEntry.setActionSummary(actionSummary);
+        logEntry.setIpAddress(ipAddress != null ? ipAddress : "127.0.0.1");
+
         adminAuditLogRepository.save(logEntry);
         log.info("[Admin Audit Log] Admin: {}, Action: {}, Summary: {}", adminEmail, actionType, actionSummary);
     }
@@ -529,16 +534,18 @@ public class AdminPlatformService {
     // --- HELPER MAPPERS ---
     private AdminCustomerResponseDTO mapToCustomerResponse(User user) {
         List<Order> userOrders = orderRepository.findByCustomerIdOrderByCreatedAtDesc(user.getId());
-        return AdminCustomerResponseDTO.builder()
-                .customerId(user.getId())
-                .fullName(user.getFirstName() + " " + user.getLastName())
-                .email(user.getEmail())
-                .phoneNumber(user.getPhoneNumber())
-                .active(user.isActive())
-                .totalOrdersCount((long) userOrders.size())
-                .walletBalance(BigDecimal.ZERO)
-                .refundCount(0L)
-                .createdAt(user.getCreatedAt())
-                .build();
+
+        AdminCustomerResponseDTO dto = new AdminCustomerResponseDTO();
+        dto.setCustomerId(user.getId());
+        dto.setFullName(user.getFirstName() + " " + user.getLastName());
+        dto.setEmail(user.getEmail());
+        dto.setPhoneNumber(user.getPhoneNumber());
+        dto.setActive(user.isActive());
+        dto.setTotalOrdersCount((long) userOrders.size());
+        dto.setWalletBalance(BigDecimal.ZERO);
+        dto.setRefundCount(0L);
+        dto.setCreatedAt(user.getCreatedAt());
+
+        return dto;
     }
 }
