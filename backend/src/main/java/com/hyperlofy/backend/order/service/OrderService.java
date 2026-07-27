@@ -3,6 +3,8 @@ package com.hyperlofy.backend.order.service;
 import com.hyperlofy.backend.agent.entity.AgentProfile;
 import com.hyperlofy.backend.agent.repository.AgentRepository;
 import com.hyperlofy.backend.common.exception.BusinessException;
+import com.hyperlofy.backend.event.domain.OrderCreatedEvent;
+import com.hyperlofy.backend.event.domain.OrderStatusChangedEvent;
 import com.hyperlofy.backend.inventory.dto.InventoryReservationRequest;
 import com.hyperlofy.backend.inventory.dto.InventoryReservationResult;
 import com.hyperlofy.backend.inventory.service.InventoryReservationService;
@@ -26,6 +28,7 @@ import com.hyperlofy.backend.zone.repository.ZoneRepository;
 import com.hyperlofy.backend.zone.service.ZoneService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +51,7 @@ public class OrderService {
     private final ZoneService zoneService;
     private final InventoryReservationService inventoryReservationService;
     private final LedgerService ledgerService;
+    private final ApplicationEventPublisher eventPublisher;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -141,6 +145,10 @@ public class OrderService {
         }
 
         log.info("Successfully created order for Client [{}]: Fee {}", customer.getEmail(), saved.getDeliveryFee());
+
+        // Publish OrderCreatedEvent
+        eventPublisher.publishEvent(new OrderCreatedEvent(this, saved.getId(), saved.getCustomer().getId(), saved.getMerchantId(), saved.getDeliveryFee()));
+
         return mapToOrderResponse(saved);
     }
 
@@ -197,6 +205,18 @@ public class OrderService {
         order.setOrderStatus(nextStatus);
         Order updated = orderRepository.save(order);
         log.info("Order status transitioned: {} -> {}", currentStatus, nextStatus);
+
+        // Publish OrderStatusChangedEvent
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                this,
+                updated.getId(),
+                currentStatus.name(),
+                nextStatus.name(),
+                updated.getCustomer().getId(),
+                updated.getMerchantId(),
+                updated.getAgent() != null ? updated.getAgent().getId() : null
+        ));
+
         return mapToOrderResponse(updated);
     }
 
@@ -234,6 +254,18 @@ public class OrderService {
         }
 
         log.info("Order cancelled successfully: {}", orderId);
+
+        // Publish OrderStatusChangedEvent for CANCELLED
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                this,
+                saved.getId(),
+                currentStatus.name(),
+                OrderStatus.CANCELLED.name(),
+                saved.getCustomer().getId(),
+                saved.getMerchantId(),
+                saved.getAgent() != null ? saved.getAgent().getId() : null
+        ));
+
         return mapToOrderResponse(saved);
     }
 
@@ -363,4 +395,3 @@ public class OrderService {
                 .build();
     }
 }
-

@@ -8,6 +8,7 @@ import com.hyperlofy.backend.agent.repository.AgentRepository;
 import com.hyperlofy.backend.agent.repository.WithdrawalRequestRepository;
 import com.hyperlofy.backend.common.exception.BusinessException;
 import com.hyperlofy.backend.delivery.dto.*;
+import com.hyperlofy.backend.event.domain.DeliveryLocationUpdatedEvent;
 import com.hyperlofy.backend.ledger.entity.CommissionLedger;
 import com.hyperlofy.backend.ledger.repository.CommissionLedgerRepository;
 import com.hyperlofy.backend.ledger.service.LedgerService;
@@ -22,6 +23,7 @@ import com.hyperlofy.backend.user.entity.User;
 import com.hyperlofy.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -48,6 +50,7 @@ public class DeliveryPlatformService {
     private final WithdrawalRequestRepository withdrawalRequestRepository;
     private final UserRepository userRepository;
     private final LedgerService ledgerService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // --- MODULE 1: DASHBOARD ---
     @Transactional(readOnly = true)
@@ -250,6 +253,20 @@ public class DeliveryPlatformService {
         }
 
         return mapToDeliveryOrderResponse(order);
+    }
+
+    @Transactional
+    public void updateDriverLocation(UUID agentId, UUID orderId, Double latitude, Double longitude) {
+        AgentProfile profile = agentRepository.findByUserId(agentId).orElse(null);
+        if (profile != null) {
+            profile.setCurrentGpsLatitude(latitude);
+            profile.setCurrentGpsLongitude(longitude);
+            agentRepository.save(profile);
+        }
+
+        // Publish DeliveryLocationUpdatedEvent
+        eventPublisher.publishEvent(new DeliveryLocationUpdatedEvent(this, orderId, agentId, latitude, longitude, 15));
+        log.info("[Driver Location Event] Published GPS update for agent={}, order={}", agentId, orderId);
     }
 
     // --- MODULE 3: AVAILABILITY & WORK STATUS ---
