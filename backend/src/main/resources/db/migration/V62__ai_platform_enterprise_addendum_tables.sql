@@ -1,0 +1,52 @@
+-- V62: Create AI Platform Enterprise Addendum Tables (AI Governance, Prompt Safety Detection, Autonomous Agents & Long-Term Memory)
+
+-- 1. AI Governance Table
+CREATE TABLE IF NOT EXISTS ai_governance (
+    id UUID PRIMARY KEY,
+    model_name VARCHAR(100) NOT NULL,
+    approval_status VARCHAR(30) NOT NULL DEFAULT 'APPROVED', -- PENDING, APPROVED, REJECTED, DEPRECATED
+    approved_by VARCHAR(100) NOT NULL,
+    policy_version VARCHAR(30) NOT NULL DEFAULT 'v1.0.0',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+-- 2. AI Safety Events Table
+CREATE TABLE IF NOT EXISTS ai_safety_events (
+    id UUID PRIMARY KEY,
+    user_id UUID,
+    violation_type VARCHAR(50) NOT NULL, -- PROMPT_INJECTION, PII_LEAK, SENSITIVE_CONTENT, HALLUCINATION
+    severity VARCHAR(30) NOT NULL DEFAULT 'MEDIUM',
+    sanitized_prompt TEXT,
+    action_taken VARCHAR(50) NOT NULL DEFAULT 'BLOCKED',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+-- 3. AI Agent Runs Table
+CREATE TABLE IF NOT EXISTS ai_agent_runs (
+    id UUID PRIMARY KEY,
+    agent_name VARCHAR(100) NOT NULL,
+    task_goal VARCHAR(255) NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'COMPLETED', -- RUNNING, COMPLETED, FAILED
+    execution_steps_json TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+-- 4. AI Memory Store Table
+CREATE TABLE IF NOT EXISTS ai_memory_store (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    memory_key VARCHAR(100) NOT NULL,
+    memory_value TEXT NOT NULL,
+    memory_type VARCHAR(50) NOT NULL DEFAULT 'CONVERSATION', -- CONVERSATION, PREFERENCE, VECTOR
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_aimem_user ON ai_memory_store(user_id);
