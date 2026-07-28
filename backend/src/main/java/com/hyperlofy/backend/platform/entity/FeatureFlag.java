@@ -22,13 +22,21 @@ public class FeatureFlag extends BaseEntity {
     @Column(name = "flag_key", nullable = false, unique = true, length = 100)
     private String flagKey;
 
-    @Column(name = "flag_name", nullable = false, length = 150)
+    @Column(name = "flag_name", length = 100)
     private String flagName;
 
-    @Column(name = "description", length = 255)
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
     @Builder.Default
-    @Column(name = "is_enabled", nullable = false)
+    @Column(name = "flag_status", nullable = false, length = 30)
+    private String flagStatus = "PRODUCTION";
+
+    @Builder.Default
+    @Column(name = "is_enabled")
     private Boolean isEnabled = true;
+
+    @Builder.Default
+    @Column(name = "rollout_percentage")
+    private Integer rolloutPercentage = 100;
 }
