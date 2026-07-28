@@ -1,0 +1,54 @@
+-- V63: Create Platform Reliability, SRE & Cloud Operations Tables (Health Checks, Deployment Automation, Incident Management, & SLO Tracking)
+
+-- 1. Platform Health Table
+CREATE TABLE IF NOT EXISTS platform_health (
+    id UUID PRIMARY KEY,
+    service_name VARCHAR(100) NOT NULL UNIQUE,
+    health_status VARCHAR(30) NOT NULL DEFAULT 'HEALTHY', -- HEALTHY, DEGRADED, UNHEALTHY
+    cpu_utilization_pct NUMERIC(5,2) NOT NULL DEFAULT 15.50,
+    memory_utilization_pct NUMERIC(5,2) NOT NULL DEFAULT 42.10,
+    p95_latency_ms INT NOT NULL DEFAULT 24,
+    last_probe_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+-- 2. Platform Deployments Table
+CREATE TABLE IF NOT EXISTS platform_deployments (
+    id UUID PRIMARY KEY,
+    deployment_number VARCHAR(100) NOT NULL UNIQUE,
+    service_name VARCHAR(100) NOT NULL,
+    version VARCHAR(50) NOT NULL,
+    strategy VARCHAR(30) NOT NULL DEFAULT 'CANARY', -- CANARY, BLUE_GREEN, ROLLING
+    status VARCHAR(30) NOT NULL DEFAULT 'COMPLETED', -- IN_PROGRESS, COMPLETED, ROLLED_BACK
+    deployed_by VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+-- 3. Platform Incidents Table
+CREATE TABLE IF NOT EXISTS platform_incidents (
+    id UUID PRIMARY KEY,
+    incident_number VARCHAR(100) NOT NULL UNIQUE,
+    service_name VARCHAR(100) NOT NULL,
+    severity VARCHAR(30) NOT NULL DEFAULT 'SEV2', -- SEV1, SEV2, SEV3
+    description TEXT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'OPEN', -- OPEN, INVESTIGATING, MITIGATED, RESOLVED
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+-- 4. Platform SLOs Table
+CREATE TABLE IF NOT EXISTS platform_slos (
+    id UUID PRIMARY KEY,
+    slo_name VARCHAR(150) NOT NULL UNIQUE,
+    target_percentage NUMERIC(5,3) NOT NULL DEFAULT 99.900,
+    current_percentage NUMERIC(5,3) NOT NULL DEFAULT 99.950,
+    error_budget_remaining_pct NUMERIC(5,2) NOT NULL DEFAULT 85.00,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
