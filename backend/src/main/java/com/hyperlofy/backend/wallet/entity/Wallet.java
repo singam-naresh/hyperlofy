@@ -4,20 +4,13 @@ import com.hyperlofy.backend.common.entity.BaseEntity;
 import com.hyperlofy.backend.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Entity
 @Table(name = "wallets")
@@ -30,14 +23,71 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class Wallet extends BaseEntity {
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private User user;
+    @Column(name = "owner_id", nullable = false, unique = true)
+    private UUID ownerId;
 
-    @Column(name = "balance", nullable = false, precision = 15, scale = 2)
-    private BigDecimal balance = BigDecimal.ZERO;
+    @Builder.Default
+    @Column(name = "owner_type", nullable = false, length = 30)
+    private String ownerType = "CUSTOMER"; // CUSTOMER, DRIVER, MERCHANT, TREASURY
 
-    @Version
-    @Column(name = "version")
-    private Long version;
+    @Builder.Default
+    @Column(name = "currency", nullable = false, length = 10)
+    private String currency = "INR";
+
+    @Builder.Default
+    @Column(name = "spendable_balance", nullable = false, precision = 14, scale = 2)
+    private BigDecimal spendableBalance = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "reserved_balance", nullable = false, precision = 14, scale = 2)
+    private BigDecimal reservedBalance = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "promotional_balance", nullable = false, precision = 14, scale = 2)
+    private BigDecimal promotionalBalance = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "status", nullable = false, length = 30)
+    private String status = "ACTIVE"; // ACTIVE, FROZEN, CLOSED
+
+    @Builder.Default
+    @Column(name = "kyc_status", nullable = false, length = 30)
+    private String kycStatus = "VERIFIED";
+
+    // --- Legacy compatibility methods ---
+
+    public BigDecimal getBalance() {
+        return getSpendableBalance();
+    }
+
+    public void setBalance(BigDecimal balance) {
+        setSpendableBalance(balance);
+    }
+
+    public User getUser() {
+        if (ownerId == null) return null;
+        User u = new User();
+        u.setId(ownerId);
+        return u;
+    }
+
+    public void setUser(User user) {
+        if (user != null) {
+            this.ownerId = user.getId();
+        }
+    }
+
+    public static class WalletBuilder {
+        public WalletBuilder user(User user) {
+            if (user != null) {
+                this.ownerId(user.getId());
+            }
+            return this;
+        }
+
+        public WalletBuilder balance(BigDecimal balance) {
+            this.spendableBalance(balance);
+            return this;
+        }
+    }
 }
