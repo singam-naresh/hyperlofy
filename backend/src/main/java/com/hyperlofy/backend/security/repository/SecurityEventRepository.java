@@ -9,6 +9,5 @@ import java.util.UUID;
 
 @Repository
 public interface SecurityEventRepository extends JpaRepository<SecurityEvent, UUID> {
-    List<SecurityEvent> findByEmail(String email);
-    List<SecurityEvent> findBySeverity(String severity);
+    List<SecurityEvent> findByUserIdOrderByCreatedAtDesc(UUID userId);
 }
