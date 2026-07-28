@@ -1,0 +1,56 @@
+-- V70: Create Enterprise Integration Platform Enterprise Addendum Tables (Connector Marketplace, Debezium CDC Streams, B2B EDI Messages, & Master Data Management)
+
+-- 1. Connector Marketplace Table
+CREATE TABLE IF NOT EXISTS connector_marketplace (
+    id UUID PRIMARY KEY,
+    template_name VARCHAR(150) NOT NULL UNIQUE,
+    publisher VARCHAR(100) NOT NULL DEFAULT 'HYPERLOFY_LABS',
+    category VARCHAR(50) NOT NULL, -- ERP, CRM, LOGISTICS, PAYMENT
+    version VARCHAR(30) NOT NULL DEFAULT 'v1.0.0',
+    certification_status VARCHAR(30) NOT NULL DEFAULT 'CERTIFIED', -- PENDING, CERTIFIED, DEPRECATED
+    download_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+-- 2. CDC Streams Table (Debezium Outbox / Change Data Capture)
+CREATE TABLE IF NOT EXISTS cdc_streams (
+    id UUID PRIMARY KEY,
+    stream_name VARCHAR(150) NOT NULL UNIQUE,
+    source_table VARCHAR(100) NOT NULL,
+    kafka_topic VARCHAR(150) NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'STREAMING', -- PAUSED, STREAMING, ERROR
+    lag_ms BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+-- 3. B2B Messages Table (EDI X12, EDIFACT, AS2)
+CREATE TABLE IF NOT EXISTS b2b_messages (
+    id UUID PRIMARY KEY,
+    partner_id UUID NOT NULL,
+    message_type VARCHAR(50) NOT NULL, -- EDI_850_PURCHASE_ORDER, EDI_810_INVOICE, AS2_PAYLOAD
+    control_number VARCHAR(100) NOT NULL UNIQUE,
+    status VARCHAR(30) NOT NULL DEFAULT 'ACKNOWLEDGED', -- SENT, RECEIVED, ACKNOWLEDGED, FAILED
+    encryption_type VARCHAR(30) NOT NULL DEFAULT 'AES256_RSA',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_bm_partner ON b2b_messages(partner_id);
+
+-- 4. Master Data Registry Table (Golden Record MDM)
+CREATE TABLE IF NOT EXISTS master_data_registry (
+    id UUID PRIMARY KEY,
+    domain_type VARCHAR(50) NOT NULL, -- CUSTOMER, MERCHANT, PRODUCT, INVENTORY
+    master_code VARCHAR(100) NOT NULL UNIQUE,
+    golden_record_json TEXT NOT NULL,
+    version INT NOT NULL DEFAULT 1,
+    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
