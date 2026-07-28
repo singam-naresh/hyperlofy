@@ -1,0 +1,57 @@
+-- V72: Create Enterprise Data Platform Enterprise Addendum Tables (Dataset Registry, Data Quality Results, Feature/Data Drift Reports, & MLOps Training Datasets)
+
+-- 1. Dataset Registry Table
+CREATE TABLE IF NOT EXISTS dataset_registry (
+    id UUID PRIMARY KEY,
+    dataset_name VARCHAR(150) NOT NULL UNIQUE,
+    dataset_owner VARCHAR(100) NOT NULL,
+    classification_level VARCHAR(30) NOT NULL DEFAULT 'CONFIDENTIAL', -- PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED
+    certification_status VARCHAR(30) NOT NULL DEFAULT 'CERTIFIED', -- UNVERIFIED, CERTIFIED, DEPRECATED
+    quality_score NUMERIC(5,2) NOT NULL DEFAULT 99.50,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+-- 2. Data Quality Results Table
+CREATE TABLE IF NOT EXISTS data_quality_results (
+    id UUID PRIMARY KEY,
+    dataset_id UUID REFERENCES dataset_registry(id),
+    rule_name VARCHAR(100) NOT NULL,
+    rule_type VARCHAR(50) NOT NULL, -- COMPLETENESS, ACCURACY, FRESHNESS, ANOMALY
+    status VARCHAR(30) NOT NULL DEFAULT 'PASSED', -- PASSED, FAILED, QUARANTINED
+    records_checked INT NOT NULL DEFAULT 0,
+    records_failed INT NOT NULL DEFAULT 0,
+    executed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_dqr_dataset ON data_quality_results(dataset_id);
+
+-- 3. Data Drift Reports Table (MLOps Data Drift)
+CREATE TABLE IF NOT EXISTS data_drift_reports (
+    id UUID PRIMARY KEY,
+    model_id VARCHAR(100) NOT NULL,
+    feature_name VARCHAR(100) NOT NULL,
+    drift_score NUMERIC(5,4) NOT NULL DEFAULT 0.0125,
+    drift_detected BOOLEAN NOT NULL DEFAULT FALSE,
+    report_timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+-- 4. Training Datasets Table
+CREATE TABLE IF NOT EXISTS training_datasets (
+    id UUID PRIMARY KEY,
+    dataset_name VARCHAR(150) NOT NULL UNIQUE,
+    model_type VARCHAR(100) NOT NULL, -- DEMAND_FORECASTING, DYNAMIC_PRICING, FRAUD_DETECTION
+    storage_path VARCHAR(255) NOT NULL,
+    sample_count INT NOT NULL DEFAULT 1000000,
+    feature_version VARCHAR(30) NOT NULL DEFAULT 'v1.0',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
