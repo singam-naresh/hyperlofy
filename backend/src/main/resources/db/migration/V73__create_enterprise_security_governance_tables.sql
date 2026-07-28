@@ -1,0 +1,60 @@
+-- V73: Create Enterprise Security, Compliance, Risk & Governance Tables (Security Policies, Privileged Sessions, Risk Register, & Compliance Controls)
+
+-- 1. Security Policies Table (ABAC / PBAC / Zero Trust)
+CREATE TABLE IF NOT EXISTS security_policies (
+    id UUID PRIMARY KEY,
+    policy_code VARCHAR(100) NOT NULL UNIQUE,
+    policy_name VARCHAR(150) NOT NULL,
+    policy_type VARCHAR(50) NOT NULL, -- ABAC, PBAC, ZERO_TRUST, DATA_MASKING
+    effect VARCHAR(20) NOT NULL DEFAULT 'ALLOW', -- ALLOW, DENY
+    rule_expression TEXT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+-- 2. Privileged Sessions Table (JIT Access / Session Auditing)
+CREATE TABLE IF NOT EXISTS privileged_sessions (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    requested_role VARCHAR(100) NOT NULL,
+    justification VARCHAR(255) NOT NULL,
+    session_status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, EXPIRED, TERMINATED
+    risk_score NUMERIC(5,2) NOT NULL DEFAULT 10.00,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_ps_user ON privileged_sessions(user_id);
+
+-- 3. Risk Register Table (Enterprise Risk & Vulnerabilities)
+CREATE TABLE IF NOT EXISTS risk_register (
+    id UUID PRIMARY KEY,
+    risk_code VARCHAR(100) NOT NULL UNIQUE,
+    risk_title VARCHAR(150) NOT NULL,
+    category VARCHAR(50) NOT NULL, -- CYBERSECURITY, COMPLIANCE, OPERATIONAL
+    severity VARCHAR(30) NOT NULL DEFAULT 'HIGH', -- CRITICAL, HIGH, MEDIUM, LOW
+    impact_score NUMERIC(5,2) NOT NULL DEFAULT 85.00,
+    status VARCHAR(30) NOT NULL DEFAULT 'IDENTIFIED', -- IDENTIFIED, MITIGATED, ACCEPTED
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
+
+-- 4. Compliance Controls Table (SOC2, ISO 27001, GDPR, PCI-DSS)
+CREATE TABLE IF NOT EXISTS compliance_controls (
+    id UUID PRIMARY KEY,
+    control_code VARCHAR(100) NOT NULL UNIQUE,
+    framework VARCHAR(50) NOT NULL, -- SOC2, ISO27001, GDPR, PCI_DSS
+    control_name VARCHAR(150) NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'PASSED', -- PASSED, FAILED, IN_REVIEW
+    evidence_url VARCHAR(255),
+    last_tested_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN DEFAULT FALSE
+);
